@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    restart: always
+    networks:
+      - backend_network
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    networks:
+      - backend_network
+
+  celery_worker:
+    build: .
+    command: ["celery", "-A", "besth_backend", "worker", "-l", "info"]
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    restart: always
+    networks:
+      - backend_network
+    depends_on:
+      - redis
+      - backend
+
+  celery_beat:
+    build: .
+    command: ["celery", "-A", "besth_backend", "beat", "-l", "info"]
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    restart: always
+    networks:
+      - backend_network
+    depends_on:
+      - redis
+      - backend
+
+networks:
+  backend_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.50.14.0/24
